@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.pytest_cache/
+*.egg-info/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Env / secrets (for future parts, e.g. API keys)
+.env
