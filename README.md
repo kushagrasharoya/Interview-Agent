@@ -42,6 +42,7 @@ After completing the cohort, learners must explain the systems they built and de
 
 ## 4. Architecture & Flow Diagram
 
+### 4.1 System Component Layout
 ```
 Frontend Client (Browser)
             │
@@ -64,6 +65,64 @@ Data Services (backend/app/services/)                 AI Agent (backend/app/agen
 └── llm_service.py (Gemini / Claude / OpenAI)        ├── decision_engine.py (7-action state machine)
                                                      ├── feedback_generator.py (final assessment)
                                                      └── prompts.py (system personas & templates)
+```
+
+### 4.2 Interview Lifecycle State Flow
+```
+                    CANDIDATE
+                        │
+                        ▼
+              ┌──────────────────┐
+              │ Candidate        │
+              │ Analyzer         │
+              └────────┬─────────┘
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Topic Selection  │
+              └────────┬─────────┘
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Question         │
+              │ Generator        │
+              └────────┬─────────┘
+                       │
+                       ▼
+                    QUESTION
+                       │
+                       ▼
+                   CANDIDATE
+                    ANSWER
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Answer           │
+              │ Evaluator        │
+              └────────┬─────────┘
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Decision Engine  │
+              └────────┬─────────┘
+                       │
+             ┌─────────┼─────────┐
+             ▼         ▼         ▼
+          FOLLOW-UP  NEW TOPIC  DEEPER
+             │         │         │
+             └─────────┼─────────┘
+                       ▼
+                  NEXT QUESTION
+                       │
+                       ▼
+                    REPEAT
+                       │
+                       ▼
+             8+ QUESTIONS
+             4+ CURRICULUM DAYS
+                       │
+                       ▼
+                FINAL FEEDBACK
 ```
 
 ---
