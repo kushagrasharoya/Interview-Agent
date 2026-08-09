@@ -50,6 +50,7 @@ def health_check() -> dict[str, str]:
 
 
 # Mount static frontend files if present (for single-server deployment)
-frontend_dir = Path(__file__).resolve().parent.parent.parent / "frontend"
+root_dir = Path(__file__).resolve().parent.parent.parent
+frontend_dir = root_dir / "public" if (root_dir / "public" / "index.html").exists() else (root_dir / "frontend")
 if frontend_dir.exists() and (frontend_dir / "index.html").exists():
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")

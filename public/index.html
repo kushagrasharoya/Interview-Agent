@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Interview Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="room">
+
+  <header class="topbar">
+    <div class="topbar__mark">
+      <span class="topbar__dot" aria-hidden="true"></span>
+      <span class="topbar__eyebrow">AI COHORT &middot; TECHNICAL INTERVIEW</span>
+    </div>
+    <h1 class="topbar__title">The Interview Agent</h1>
+  </header>
+
+  <main class="stage">
+
+    <!-- ============================================================ -->
+    <!-- SCREEN 1 — CANDIDATE ROSTER                                   -->
+    <!-- ============================================================ -->
+    <section id="screen-roster" class="screen screen--active" aria-label="Candidate selection">
+      <div class="screen__intro">
+        <p class="eyebrow">01 &middot; roster</p>
+        <h2>Pick a graduate to interview.</h2>
+        <p class="lede">Real questions, drawn from what they actually built during the 31-day cohort &mdash; not a scripted quiz.</p>
+      </div>
+
+      <div id="roster-status" class="status-line" hidden></div>
+
+      <div id="roster-grid" class="roster-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- SCREEN 2 — INTERVIEW SESSION                                  -->
+    <!-- ============================================================ -->
+    <section id="screen-interview" class="screen" aria-label="Interview in progress">
+
+      <div class="ticket">
+        <div class="ticket__row">
+          <span class="ticket__label">session</span>
+          <span class="ticket__value" id="ticket-session">&mdash;</span>
+        </div>
+        <div class="ticket__row">
+          <span class="ticket__label">candidate</span>
+          <span class="ticket__value" id="ticket-candidate">&mdash;</span>
+        </div>
+        <div class="ticket__row ticket__row--status">
+          <span class="ticket__label">status</span>
+          <span class="ticket__value ticket__status" id="ticket-status">
+            <span class="pulse" aria-hidden="true"></span>live
+          </span>
+        </div>
+      </div>
+
+      <div class="tape" aria-label="Interview progress">
+        <div class="tape__head">
+          <span id="tape-count">question 0</span>
+          <span class="tape__target">of ~10</span>
+        </div>
+        <div class="tape__ticks" id="tape-ticks"></div>
+      </div>
+
+      <div class="transcript" id="transcript" aria-live="polite" aria-label="Interview conversation"></div>
+
+      <form id="answer-form" class="answer-row" autocomplete="off">
+        <label for="answer-input" class="sr-only">Your answer</label>
+        <textarea
+          id="answer-input"
+          class="answer-input"
+          placeholder="Type your answer&hellip;"
+          rows="1"
+          maxlength="4000"
+        ></textarea>
+        <button type="submit" id="answer-send" class="btn btn--send">
+          <span class="btn__label">Send</span>
+          <span class="btn__caret" aria-hidden="true">&#9656;</span>
+        </button>
+      </form>
+
+      <p id="interview-error" class="error-line" hidden></p>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- SCREEN 3 — FEEDBACK SCORECARD                                 -->
+    <!-- ============================================================ -->
+    <section id="screen-feedback" class="screen" aria-label="Interview feedback">
+      <div class="screen__intro">
+        <p class="eyebrow">03 &middot; debrief</p>
+        <h2>Interview complete.</h2>
+        <p class="lede" id="feedback-candidate-line"></p>
+      </div>
+
+      <div class="scorecard">
+        <section class="scorecard__section scorecard__section--summary">
+          <p class="scorecard__label">summary</p>
+          <p class="scorecard__summary" id="feedback-summary"></p>
+        </section>
+
+        <div class="scorecard__grid">
+          <section class="scorecard__section scorecard__section--strengths">
+            <p class="scorecard__label">strengths</p>
+            <ul class="scorecard__list" id="feedback-strengths"></ul>
+          </section>
+
+          <section class="scorecard__section scorecard__section--gaps">
+            <p class="scorecard__label">gaps</p>
+            <ul class="scorecard__list" id="feedback-gaps"></ul>
+          </section>
+
+          <section class="scorecard__section scorecard__section--next">
+            <p class="scorecard__label">next steps</p>
+            <ul class="scorecard__list" id="feedback-next"></ul>
+          </section>
+        </div>
+      </div>
+
+      <button type="button" id="btn-restart" class="btn btn--ghost">Interview another candidate</button>
+    </section>
+
+  </main>
+</div>
+
+<script src="js/candidates_data.js"></script>
+<script src="js/state.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
