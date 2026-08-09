@@ -5,16 +5,51 @@ These tests check that the Part 1 foundation actually works:
 the server starts, data loads correctly, and the /api/interview
 endpoint behaves the way the technical spec says it should.
 
+NOTE (updated in Part 3): POST /api/interview is now backed by the
+interview engine (app/services/interview_engine.py) instead of Part
+1's placeholder reply. The tests that call POST /api/interview below
+mock the LLM so tests run offline in milliseconds.
+
 Run these with (from the backend/ folder):
     pytest
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services import candidate_service, curriculum_service
+from app.services import candidate_service, curriculum_service, interview_engine, session_service
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def reset_stores_and_mock_llm(monkeypatch):
+    """Reset in-memory session stores and mock LLM calls."""
+    interview_engine._engine_sessions.clear()
+    session_service._sessions.clear()
+
+    counter = {"n": 0}
+
+    def fake_generate_json(system_prompt, user_prompt, **kwargs):
+        lower = user_prompt.lower()
+        if "final interview feedback" in lower:
+            return {"summary": "Solid overall performance.", "strengths": [], "gaps": [], "next": []}
+        if "evaluating a candidate" in lower:
+            return {
+                "score": 7,
+                "understanding": "moderate",
+                "technical_correctness": "mostly_correct",
+                "strengths": [],
+                "missing_concepts": [],
+                "follow_up_needed": False,
+                "recommended_action": "NEW_TOPIC",
+            }
+        counter["n"] += 1
+        return {"question": f"Generated interview question #{counter['n']}?"}
+
+    monkeypatch.setattr("app.ai.llm_service.generate_json", fake_generate_json)
+    yield
 
 
 # ---------------------------------------------------------------------
@@ -43,14 +78,14 @@ def test_start_interview_creates_session():
 
     assert response.status_code == 200
     body = response.json()
-    assert body["reply"] == "Welcome. Let's begin your interview."
+    assert "Welcome" in body["reply"]
     assert body["done"] is False
 
 
 # ---------------------------------------------------------------------
 # 3. POST /api/interview can continue an existing session.
 # ---------------------------------------------------------------------
-def test_continue_interview_returns_placeholder_reply():
+def test_continue_interview_returns_next_question():
     candidate = candidate_service.get_candidate_by_id("CAND-002")
 
     # Start the session first.
@@ -68,7 +103,7 @@ def test_continue_interview_returns_placeholder_reply():
     assert response.status_code == 200
     body = response.json()
     assert body["done"] is False
-    assert "Part 2" in body["reply"]
+    assert body["reply"]
 
 
 # ---------------------------------------------------------------------
@@ -76,8 +111,6 @@ def test_continue_interview_returns_placeholder_reply():
 #    (conversation history accumulates across requests).
 # ---------------------------------------------------------------------
 def test_same_session_id_keeps_conversation_history():
-    from app.services import session_service
-
     candidate = candidate_service.get_candidate_by_id("CAND-003")
 
     client.post(

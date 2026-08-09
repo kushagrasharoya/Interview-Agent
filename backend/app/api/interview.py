@@ -6,16 +6,19 @@ technical spec requires: POST /api/interview.
 
 Why this file exists:
 This is the "front door" of the backend. It is the only place that
-knows about HTTP requests and responses. It does not know *how* to
-run an interview (that's Part 2/3's job) — it only knows how to:
+knows about HTTP requests and responses. It does not run the interview
+itself - that's app/services/interview_engine.py's job (Part 3). This
+file's job is only to:
   1. read the incoming JSON,
   2. figure out whether this is a "start" or "continue" request,
-  3. call the right service(s),
-  4. send back JSON in the exact shape the spec requires.
+  3. call the engine,
+  4. translate the engine's result (or any error) into the exact JSON
+     shape the technical spec requires.
 
-For Part 1, "continuing" an interview returns a placeholder
-reply. The real AI interviewer is built in later parts and will plug
-in here without changing this file's request/response shape.
+The InterviewRequest / InterviewResponse / InterviewFeedback classes
+below are the API CONTRACT and have not changed since Part 1 - only
+the logic inside the `interview()` function has, now that Part 3 has
+a real engine to call instead of a placeholder.
 """
 
 from typing import Optional
@@ -23,8 +26,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.models.candidate import Candidate
-from app.models.session import InterviewSession, ConversationTurn, Speaker
-from app.services import session_service
+from app.services import interview_engine
 
 router = APIRouter()
 
@@ -72,66 +74,43 @@ class InterviewResponse(BaseModel):
 @router.post("/api/interview", response_model=InterviewResponse)
 def interview(request: InterviewRequest) -> InterviewResponse:
     """
-    Handle one turn of the interview conversation.
+    Handle one turn of the interview conversation by delegating to the
+    Interview Engine (Part 3).
 
-    MODE 1 - START: request includes "candidate" -> create a new
-    session for this candidate and greet them.
+    MODE 1 - START: request includes "candidate" -> engine analyzes
+    the candidate, plans the interview, and generates the first
+    question.
 
-    MODE 2 - CONTINUE: request includes "message" -> look up the
-    existing session and (for now, in Part 1) return a placeholder
-    reply. Part 2 will replace the placeholder with a real AI-driven
-    response.
+    MODE 2 - CONTINUE: request includes "message" -> engine evaluates
+    the answer, decides what happens next, and either asks another
+    question or ends the interview with final feedback.
     """
 
     # ---- MODE 1: START INTERVIEW ----
     if request.candidate is not None:
-        session = InterviewSession(
-            session_id=request.sessionId,
-            candidate=request.candidate,
-        )
+        try:
+            result = interview_engine.start_interview(request.sessionId, request.candidate)
+        except interview_engine.SessionAlreadyExistsError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except interview_engine.AIBrainError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-        # Record the interviewer's opening line in the transcript so
-        # conversation history starts from the very first message.
-        opening_reply = "Welcome. Let's begin your interview."
-        session.conversation_history.append(
-            ConversationTurn(speaker=Speaker.INTERVIEWER, text=opening_reply)
-        )
-
-        session_service.create_session(session)
-
-        return InterviewResponse(reply=opening_reply, done=False)
+        return InterviewResponse(reply=result.reply, done=result.done)
 
     # ---- MODE 2: CONTINUE INTERVIEW ----
     if request.message is not None:
-        session = session_service.get_session(request.sessionId)
+        if not request.message.strip():
+            raise HTTPException(status_code=400, detail="'message' cannot be empty.")
 
-        if session is None:
-            # Handled cleanly rather than crashing: a client sent a
-            # sessionId we've never seen (or the server restarted and
-            # lost its in-memory sessions).
-            raise HTTPException(
-                status_code=404,
-                detail=f"No interview session found for sessionId '{request.sessionId}'. "
-                "Start an interview first by sending a 'candidate' object.",
-            )
+        try:
+            result = interview_engine.continue_interview(request.sessionId, request.message)
+        except interview_engine.SessionNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except interview_engine.AIBrainError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-        # Record the candidate's answer in the transcript.
-        session.conversation_history.append(
-            ConversationTurn(speaker=Speaker.CANDIDATE, text=request.message)
-        )
-
-        # Part 1 placeholder reply. Part 2 (the AI Interview Brain)
-        # will replace this with a real generated question/follow-up.
-        placeholder_reply = (
-            "Interview session received. AI interviewer will be added in Part 2."
-        )
-        session.conversation_history.append(
-            ConversationTurn(speaker=Speaker.INTERVIEWER, text=placeholder_reply)
-        )
-
-        session_service.update_session(session)
-
-        return InterviewResponse(reply=placeholder_reply, done=False)
+        feedback = InterviewFeedback(**result.feedback.model_dump()) if result.feedback else None
+        return InterviewResponse(reply=result.reply, done=result.done, feedback=feedback)
 
     # Neither "candidate" nor "message" was provided - request doesn't
     # match either mode defined in the technical spec.
