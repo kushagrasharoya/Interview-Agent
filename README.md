@@ -36,8 +36,8 @@ candidate actually types into.
 ## 2. What each folder does
 
 ```
-the-interview-agent/
-├── README.md              ← you are here
+Interview-Agent/
+├── README.md              ← you are here (Part 1 guide & architecture)
 ├── PROMPTS.md              ← placeholder; filled in properly in Part 5
 ├── technical-spec.md       ← the API contract we must not break
 ├── .gitignore
@@ -48,20 +48,28 @@ the-interview-agent/
 │   │   ├── main.py         ← starts the web server
 │   │   ├── config.py       ← file paths & constants, kept in one place
 │   │   ├── api/             ← handles HTTP requests/responses
+│   │   │   └── interview.py ← POST /api/interview endpoint
 │   │   ├── models/          ← describes the "shape" of our data
+│   │   │   ├── candidate.py ← candidate Pydantic validation
+│   │   │   └── session.py   ← interview session state model
 │   │   └── services/        ← the logic that reads data & manages sessions
+│   │       ├── candidate_service.py  ← candidate data loader
+│   │       ├── curriculum_service.py ← curriculum data loader
+│   │       └── session_service.py    ← in-memory session manager
 │   ├── data/                ← the provided JSON files live here (unedited)
+│   │   ├── candidates.json
+│   │   └── curriculum.json
 │   └── tests/                ← automated tests
+│       └── test_foundation.py
 │
 └── frontend/                ← empty for now; built in Part 4
+    └── README.md
 ```
 
 Think of it like a restaurant:
 - `models/` = the recipe cards (what a valid dish looks like).
-- `services/` = the kitchen (does the actual work: fetching
-  ingredients, cooking).
-- `api/` = the waiter (takes the customer's order, brings back food,
-  speaks "HTTP" to the outside world).
+- `services/` = the kitchen (does the actual work: fetching ingredients, cooking).
+- `api/` = the waiter (takes the customer's order, brings back food, speaks "HTTP" to the outside world).
 - `main.py` = the restaurant's front door / open sign.
 
 ---
@@ -80,7 +88,7 @@ change a path or a number later.
 
 ### `app/models/candidate.py`
 Describes what a valid **candidate** object looks like (using
-Pydantic — see below). It does not contain any real candidate data,
+Pydantic). It does not contain any real candidate data,
 just the *shape* that data must follow.
 
 ### `app/models/session.py`
@@ -124,7 +132,7 @@ sessions are created and remembered, data loads correctly, etc).
 FastAPI is a Python tool for building web servers — programs that
 listen for requests over the internet (or your local network) and
 send back responses. We use it because it's beginner-friendly, fast,
-and works very well with Pydantic (see next).
+and works very well with Pydantic.
 
 ### What is Pydantic?
 Pydantic lets us describe the "shape" of data as a Python class (e.g.
@@ -137,8 +145,8 @@ crashing confusingly later on.
 A "POST" request is one of the ways a program on the internet can ask
 a server to *do something with data it's sending along* (as opposed to
 "GET," which just asks the server to hand back data). Our frontend
-(later) will POST a JSON object like `{"sessionId": "...", "message":
-"..."}` to `/api/interview`, and the server sends a response back.
+(later) will POST a JSON object like `{"sessionId": "...", "message": "..."}`
+to `/api/interview`, and the server sends a response back.
 
 ### What is JSON?
 JSON (JavaScript Object Notation) is a plain-text way of writing
@@ -178,11 +186,12 @@ Neither file is ever modified by the app — we only ever read them.
 
 ## 6. How the frontend will connect later (Part 4)
 
-The frontend doesn't exist yet, but when it's built, it will simply
-send `POST` requests to `http://<server-address>/api/interview` — the
-exact same endpoint and JSON shapes shown in the example below. Because
-we've already built and tested that contract in Part 1, the frontend
-work in Part 4 shouldn't require any backend changes.
+The frontend will simply send `POST` requests to `http://<server-address>/api/interview`
+with the exact JSON shapes defined in `technical-spec.md`. Because we've already built
+and tested that contract in Part 1, the frontend work in Part 4 will not require
+any backend changes.
+
+---
 
 ## 7. How Part 2 will connect to this foundation
 
@@ -196,12 +205,9 @@ reply with a real call to an AI brain module. That module will read:
 - `curriculum_service.get_day(...)` (to ground questions in real
   course content)
 
-...and return the next question or a final feedback object. Nothing
-about the session model, the services, or the API's request/response
-shape needs to change for that to happen — that's the point of
-building the foundation this way.
+...and return the next question or a final feedback object.
 
-Planned overall flow (later parts fill in the middle):
+Planned overall flow:
 
 ```
 Frontend
@@ -224,13 +230,9 @@ Response
 ## 8. Running this project locally
 
 All commands below assume you have Python 3.10+ installed, and that
-your terminal is open with `the-interview-agent/backend` as the
-current folder unless noted otherwise.
+your terminal is open with `backend` as the current folder.
 
 ### Step 1 — Create a virtual environment
-
-A virtual environment keeps this project's Python packages separate
-from everything else on your machine.
 
 ```bash
 cd backend
@@ -239,23 +241,15 @@ python -m venv .venv
 
 ### Step 2 — Activate it
 
-**On Windows (Command Prompt):**
-```bat
-.venv\Scripts\activate.bat
-```
-
 **On Windows (PowerShell):**
 ```powershell
 .venv\Scripts\Activate.ps1
 ```
 
-**On macOS / Linux:**
-```bash
-source .venv/bin/activate
+**On Windows (Command Prompt):**
+```cmd
+.venv\Scripts\activate.bat
 ```
-
-You'll know it worked because your terminal prompt will show
-`(.venv)` at the start of the line.
 
 ### Step 3 — Install dependencies
 
@@ -263,105 +257,73 @@ You'll know it worked because your terminal prompt will show
 pip install -r requirements.txt
 ```
 
-### Step 4 — Start the FastAPI server
-
-```bash
-uvicorn app.main:app --reload
-```
-
-The server will start at `http://127.0.0.1:8000`. `--reload` makes it
-auto-restart whenever you save a code change, which is handy during
-development.
-
-You can open `http://127.0.0.1:8000/docs` in a browser to see an
-interactive page (auto-generated by FastAPI) where you can try the
-endpoint directly.
-
-### Step 5 — Run the tests
-
-In a **second terminal** (with the same virtual environment activated,
-from the `backend` folder):
+### Step 4 — Run the automated tests
 
 ```bash
 pytest
 ```
 
-You should see all 8 tests pass.
+All 8 foundation tests should pass.
+
+### Step 5 — Start the server
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The server will start at `http://127.0.0.1:8000`.
 
 ---
 
-## 9. Example request
+## 9. Example Request & Response
 
-**Starting an interview:**
+### Start Interview (Mode 1)
 
-```
-POST http://127.0.0.1:8000/api/interview
-Content-Type: application/json
-
-{
-  "sessionId": "demo-1",
-  "candidate": {
-    "member": {
-      "id": "CAND-001",
-      "name": "Sarah Johnson",
-      "jobRole": "Senior Data Engineer",
-      "yearsExperience": 9,
-      "education": "MS Computer Science",
-      "status": "COMPLETED"
-    },
-    "missions": [
-      { "day": 7, "title": "Embeddings Explained", "passed": true, "attempts": 1 }
-    ],
-    "signals": {
-      "commitDays": 28,
-      "missionsCompleted": 30,
-      "missionsFirstTry": 20
+```bash
+curl -X POST http://127.0.0.1:8000/api/interview \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-123",
+    "candidate": {
+      "member": {
+        "id": "CAND-001",
+        "name": "Sarah Johnson",
+        "jobRole": "Senior Data Engineer",
+        "yearsExperience": 9,
+        "education": "MS Computer Science",
+        "status": "COMPLETED"
+      },
+      "missions": [
+        { "day": 7, "title": "Embeddings Explained", "passed": true, "attempts": 1 }
+      ],
+      "signals": { "commitDays": 28, "missionsCompleted": 30, "missionsFirstTry": 20 }
     }
-  }
-}
+  }'
 ```
 
-**Expected response:**
-
+**Expected Response:**
 ```json
 {
   "reply": "Welcome. Let's begin your interview.",
-  "done": false,
-  "feedback": null
+  "done": false
 }
 ```
 
-**Continuing the interview** (same `sessionId`):
+### Continue Interview (Mode 2)
 
+```bash
+curl -X POST http://127.0.0.1:8000/api/interview \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-123",
+    "message": "I am ready to begin."
+  }'
 ```
-POST http://127.0.0.1:8000/api/interview
-Content-Type: application/json
 
-{
-  "sessionId": "demo-1",
-  "message": "I used FAISS for the vector store."
-}
-```
-
-**Expected response (Part 1 placeholder):**
-
+**Expected Response:**
 ```json
 {
   "reply": "Interview session received. AI interviewer will be added in Part 2.",
-  "done": false,
-  "feedback": null
+  "done": false
 }
 ```
-
----
-
-## 10. What's next
-
-- **Part 2:** AI Interview Brain — actually generating questions and
-  follow-ups from the candidate's data and curriculum.
-- **Part 3:** Full Interview Engine — enforcing the 8-question /
-  4-day minimums, tracking difficulty, and generating the final
-  structured feedback.
-- **Part 4:** Frontend — a simple chat UI.
-- **Part 5:** Testing, deployment, GitHub polish, and completing
-  `PROMPTS.md`.

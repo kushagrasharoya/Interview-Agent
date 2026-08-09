@@ -13,7 +13,7 @@ run an interview (that's Part 2/3's job) — it only knows how to:
   3. call the right service(s),
   4. send back JSON in the exact shape the spec requires.
 
-For Part 1, "continuing" an interview just returns a placeholder
+For Part 1, "continuing" an interview returns a placeholder
 reply. The real AI interviewer is built in later parts and will plug
 in here without changing this file's request/response shape.
 """

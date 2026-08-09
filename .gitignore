@@ -14,3 +14,9 @@ env/
 
 # Env / secrets (for future parts, e.g. API keys)
 .env
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local

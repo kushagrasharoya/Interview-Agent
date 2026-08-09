@@ -12,7 +12,6 @@ own - it just wires pieces together.
 
 Run this file with:
     uvicorn app.main:app --reload
-(see README.md for full setup instructions)
 """
 
 from fastapi import FastAPI

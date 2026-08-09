@@ -82,8 +82,11 @@ class InterviewSession(BaseModel):
     # Whether the interview is still going or has finished.
     status: InterviewStatus = InterviewStatus.IN_PROGRESS
 
-    # Placeholders for Part 2/3 to fill in as answers are evaluated.
-    # Part 1 leaves these empty; no AI evaluation happens yet.
+    # Evaluations and feedback data
     evaluations: list[dict] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
     gaps: list[str] = Field(default_factory=list)
+    questions_per_day: dict[int, int] = Field(default_factory=dict)
+    asked_questions: list[dict] = Field(default_factory=list)
+    followups_used_on_current_question: int = 0
+    feedback: Optional[dict] = None
