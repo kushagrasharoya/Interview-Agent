@@ -30,21 +30,24 @@ from typing import Optional
 
 from pydantic import BaseModel, ValidationError
 
-from app.ai import answer_evaluator, candidate_analyzer, decision_engine, feedback_generator, question_generator
-from app.ai.llm_service import LLMServiceError
+from app.agent import answer_evaluator, candidate_analyzer, decision_engine, feedback_generator, question_generator
+from app.services.llm_service import LLMServiceError
 from app.config import MINIMUM_CURRICULUM_DAYS_COVERED, MINIMUM_QUESTIONS
-from app.models.ai_models import (
+from app.models.candidate import Candidate
+from app.models.session import (
     AnswerEvaluation,
+    ConversationTurn,
     DecisionAction,
+    EngineSession,
     FinalFeedback,
     GeneratedQuestion,
     InterviewContext,
     InterviewDecision,
+    InterviewSession,
+    InterviewStatus,
     QuestionLevel,
+    Speaker,
 )
-from app.models.candidate import Candidate
-from app.models.engine_models import EngineSession
-from app.models.session import ConversationTurn, InterviewSession, InterviewStatus, Speaker
 from app.services import curriculum_service, session_service
 
 logger = logging.getLogger(__name__)

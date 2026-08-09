@@ -10,9 +10,9 @@ Structured output matters here because the decision engine
 this result - it can't safely parse a paragraph of prose every time.
 """
 
-from app.ai import llm_service, prompts
-from app.models.ai_models import AnswerEvaluation, GeneratedQuestion
-from app.services import curriculum_service
+from app.agent import prompts
+from app.models.session import AnswerEvaluation, GeneratedQuestion
+from app.services import curriculum_service, llm_service
 
 
 def evaluate_answer(question: GeneratedQuestion, answer_text: str) -> AnswerEvaluation:

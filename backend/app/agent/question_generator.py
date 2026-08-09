@@ -11,8 +11,8 @@ prompts.py) and hands it to llm_service.generate_json(), then
 validates the result into a GeneratedQuestion object.
 """
 
-from app.ai import llm_service, prompts
-from app.models.ai_models import (
+from app.agent import prompts
+from app.models.session import (
     AnswerEvaluation,
     CandidateAnalysis,
     GeneratedQuestion,
@@ -20,7 +20,7 @@ from app.models.ai_models import (
     QuestionLevel,
 )
 from app.models.candidate import Candidate
-from app.services import curriculum_service
+from app.services import curriculum_service, llm_service
 
 
 class CurriculumDayNotFoundError(ValueError):

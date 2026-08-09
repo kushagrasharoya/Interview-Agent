@@ -15,6 +15,7 @@ Run this file with:
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.interview import router as interview_router
 
@@ -22,6 +23,15 @@ app = FastAPI(
     title="The Interview Agent",
     description="AI technical interview backend for the AI Cohort hackathon.",
     version="0.1.0",
+)
+
+# Enable CORS so the static frontend served from different ports/origins can call the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Attach the /api/interview endpoint defined in app/api/interview.py.
@@ -32,9 +42,6 @@ app.include_router(interview_router)
 def health_check() -> dict[str, str]:
     """
     A tiny, non-spec endpoint used only to confirm the server is
-    running (e.g. when checking things during development). This is
-    NOT one of the "unnecessary public APIs" the spec warns against -
-    it doesn't expose candidate or curriculum data, it just answers
-    "are you alive?".
+    running (e.g. when checking things during development).
     """
     return {"status": "ok"}

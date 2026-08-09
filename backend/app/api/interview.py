@@ -26,7 +26,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.models.candidate import Candidate
-from app.services import interview_engine
+from app.engine import interview_engine
 
 router = APIRouter()
 

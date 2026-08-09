@@ -12,9 +12,10 @@ validated against FinalFeedback, which matches the technical spec's
 required schema exactly.
 """
 
-from app.ai import llm_service, prompts
-from app.models.ai_models import CandidateAnalysis, FinalFeedback, InterviewContext
+from app.agent import prompts
+from app.models.session import CandidateAnalysis, FinalFeedback, InterviewContext
 from app.models.candidate import Candidate
+from app.services import llm_service
 
 
 def generate_feedback(

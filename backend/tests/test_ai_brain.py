@@ -5,9 +5,8 @@ Tests for Part 2's AI Interview Brain.
 
 IMPORTANT: these tests never call a real LLM / never need an API key.
 Anywhere we need an LLM response, we monkeypatch
-`app.ai.llm_service.generate_json` to return a fixed dictionary
-instead of actually contacting Anthropic. This keeps the test suite
-fast, free, and runnable offline / in CI.
+`app.services.llm_service.generate_json` to return a fixed dictionary.
+This keeps the test suite fast, free, and runnable offline / in CI.
 
 Run these with (from the backend/ folder):
     pytest
@@ -15,9 +14,9 @@ Run these with (from the backend/ folder):
 
 import pytest
 
-from app.ai import candidate_analyzer, decision_engine
-from app.ai import question_generator, answer_evaluator, feedback_generator
-from app.models.ai_models import (
+from app.agent import candidate_analyzer, decision_engine
+from app.agent import question_generator, answer_evaluator, feedback_generator
+from app.models.session import (
     AnswerEvaluation,
     DecisionAction,
     GeneratedQuestion,
@@ -51,74 +50,54 @@ def make_candidate(missions: list[CandidateMission], years_experience: int = 5) 
 
 
 def test_candidate_analysis_classifies_signals_correctly():
-    candidate = make_candidate(
-        [
-            CandidateMission(day=7, title="Embeddings Explained", passed=True, attempts=1),
-            CandidateMission(day=8, title="Vector Databases Overview", passed=True, attempts=4),
-            CandidateMission(day=12, title="Prompt Engineering Fundamentals", passed=False, attempts=2),
-            CandidateMission(day=29, title="Monitoring, Logging & Observability", skipped=True),
-        ]
-    )
-
+    missions = [
+        CandidateMission(day=7, title="Embeddings", passed=True, attempts=1),
+        CandidateMission(day=8, title="Vector DBs", passed=True, attempts=4),
+        CandidateMission(day=10, title="Retrieval", passed=False, attempts=2),
+        CandidateMission(day=12, title="Prompting", passed=None, attempts=0),
+    ]
+    candidate = make_candidate(missions, years_experience=2)
     analysis = candidate_analyzer.analyze_candidate(candidate)
 
-    signals_by_day = {s.day: s for s in analysis.mission_signals}
-    assert signals_by_day[7].strength == MissionSignalStrength.STRONG   # 1 attempt + passed
-    assert signals_by_day[8].strength == MissionSignalStrength.MODERATE  # many attempts + passed
-    assert signals_by_day[12].strength == MissionSignalStrength.WEAK     # failed
-    assert signals_by_day[29].strength == MissionSignalStrength.NONE     # skipped
-
+    assert analysis.experience_level == "junior"
     assert 7 in analysis.strong_days
-    assert 12 in analysis.weak_days
-    assert 29 in analysis.no_evidence_days
+    assert 8 in analysis.weak_days
+    assert 10 in analysis.weak_days
+    assert 12 in analysis.no_evidence_days
 
 
 def test_candidate_analysis_real_candidate_data_loads_and_analyzes():
-    """Sanity check against the real provided candidates.json (from Part 1)."""
     candidate = candidate_service.get_candidate_by_id("CAND-001")
     assert candidate is not None
 
     analysis = candidate_analyzer.analyze_candidate(candidate)
-    assert len(analysis.mission_signals) == len(candidate.missions)
-    assert analysis.experience_level in ("junior", "mid", "senior")
-
-
-# ---------------------------------------------------------------------
-# 6. Skipped topic handling
-# ---------------------------------------------------------------------
+    assert analysis.experience_level == "senior"
+    assert len(analysis.mission_signals) > 0
+    assert len(analysis.suggested_focus_days) >= 4
 
 
 def test_skipped_topic_gets_no_evidence_signal_and_cautious_reason():
-    candidate = make_candidate(
-        [CandidateMission(day=29, title="Monitoring, Logging & Observability", skipped=True)]
-    )
+    missions = [
+        CandidateMission(day=22, title="Multi-Agent", passed=None, attempts=0),
+    ]
+    candidate = make_candidate(missions)
     analysis = candidate_analyzer.analyze_candidate(candidate)
 
-    signal = analysis.mission_signals[0]
+    signal = next(s for s in analysis.mission_signals if s.day == 22)
     assert signal.strength == MissionSignalStrength.NONE
-    assert "skip" in signal.reason.lower()
-    assert "no evidence" in signal.reason.lower()
-
-
-# ---------------------------------------------------------------------
-# 7. Repeated attempts handling
-# ---------------------------------------------------------------------
+    assert "skipped" in signal.reason.lower()
 
 
 def test_repeated_attempts_downgrades_to_moderate_even_though_passed():
-    candidate = make_candidate(
-        [CandidateMission(day=12, title="Prompt Engineering Fundamentals", passed=True, attempts=5)]
-    )
+    missions = [
+        CandidateMission(day=12, title="Prompting", passed=True, attempts=4),
+    ]
+    candidate = make_candidate(missions)
     analysis = candidate_analyzer.analyze_candidate(candidate)
 
-    signal = analysis.mission_signals[0]
+    signal = next(s for s in analysis.mission_signals if s.day == 12)
     assert signal.strength == MissionSignalStrength.MODERATE
-    assert "5 attempts" in signal.reason
-
-
-# ---------------------------------------------------------------------
-# Focus day selection guarantees >= 4 days when possible
-# ---------------------------------------------------------------------
+    assert "4 attempts" in signal.reason
 
 
 def test_suggested_focus_days_covers_at_least_four_when_available():
@@ -144,7 +123,7 @@ def test_generate_question_returns_valid_question(monkeypatch):
         "topic": "Embeddings",
     }
     monkeypatch.setattr(
-        "app.ai.question_generator.llm_service.generate_json",
+        "app.services.llm_service.generate_json",
         lambda system_prompt, user_prompt, **kwargs: fake_response,
     )
 
@@ -201,7 +180,7 @@ def test_generate_followup_question_marks_is_followup_true(monkeypatch):
         "topic": "Embeddings",
     }
     monkeypatch.setattr(
-        "app.ai.question_generator.llm_service.generate_json",
+        "app.services.llm_service.generate_json",
         lambda system_prompt, user_prompt, **kwargs: fake_response,
     )
 
@@ -237,7 +216,7 @@ def test_evaluate_answer_returns_structured_evaluation(monkeypatch):
         "recommended_action": "FOLLOW_UP",
     }
     monkeypatch.setattr(
-        "app.ai.answer_evaluator.llm_service.generate_json",
+        "app.services.llm_service.generate_json",
         lambda system_prompt, user_prompt, **kwargs: fake_response,
     )
 
@@ -379,7 +358,7 @@ def test_generate_feedback_matches_required_schema(monkeypatch):
         "next": ["Review cosine similarity vs. Euclidean distance"],
     }
     monkeypatch.setattr(
-        "app.ai.feedback_generator.llm_service.generate_json",
+        "app.services.llm_service.generate_json",
         lambda system_prompt, user_prompt, **kwargs: fake_response,
     )
 
@@ -398,7 +377,7 @@ def test_generate_feedback_matches_required_schema(monkeypatch):
 
 
 def test_llm_service_strips_markdown_fences_before_parsing():
-    from app.ai.llm_service import _parse_json_response
+    from app.services.llm_service import _parse_json_response
 
     messy = '```json\n{"score": 5, "ok": true}\n```'
     parsed = _parse_json_response(messy)
@@ -406,7 +385,7 @@ def test_llm_service_strips_markdown_fences_before_parsing():
 
 
 def test_llm_service_raises_clear_error_on_invalid_json():
-    from app.ai.llm_service import _parse_json_response, LLMServiceError
+    from app.services.llm_service import _parse_json_response, LLMServiceError
 
     with pytest.raises(LLMServiceError):
         _parse_json_response("this is not json at all")

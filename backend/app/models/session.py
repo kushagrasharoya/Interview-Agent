@@ -1,22 +1,12 @@
 """
 session.py (models)
 
-This file defines what an "interview session" looks like while it is
-in progress.
-
-Why this file exists:
-A single POST /api/interview request only carries one message. But an
-interview is a *conversation* that spans many requests. Something has
-to remember "who is this candidate", "what have we asked so far", and
-"how is the interview going" between one request and the next. That
-"memory" is the InterviewSession object defined here.
-
-This file only describes the shape of that memory. The actual storing
-and retrieving of sessions happens in services/session_service.py.
+This file defines what an "interview session" and its related working
+context models look like while an interview is in progress.
 """
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.models.candidate import Candidate
@@ -43,46 +33,161 @@ class InterviewStatus(str, Enum):
     COMPLETED = "completed"
 
 
-class InterviewSession(BaseModel):
-    """
-    The full state of one candidate's interview.
+# ---------------------------------------------------------------------
+# Candidate analysis models
+# ---------------------------------------------------------------------
 
-    Part 1 only creates and stores this object. Part 2 (the AI
-    Interview Brain) will be the piece that actually reads and updates
-    fields like current_topic, evaluations, strengths, and gaps based
-    on the candidate's answers.
-    """
+
+class MissionSignalStrength(str, Enum):
+    """How much evidence a candidate's mission result gives us."""
+
+    STRONG = "strong"
+    MODERATE = "moderate"
+    WEAK = "weak"
+    NONE = "none"
+
+
+class MissionSignal(BaseModel):
+    """The evidence-strength verdict for one curriculum day/mission."""
+
+    day: int
+    title: str
+    strength: MissionSignalStrength
+    reason: str
+
+
+class CandidateAnalysis(BaseModel):
+    """Structured result of analyzing one candidate's profile."""
+
+    experience_level: Literal["junior", "mid", "senior"]
+    mission_signals: list[MissionSignal]
+    strong_days: list[int]
+    weak_days: list[int]
+    no_evidence_days: list[int]
+    suggested_focus_days: list[int]
+    notes: str
+
+
+# ---------------------------------------------------------------------
+# Question models
+# ---------------------------------------------------------------------
+
+
+class QuestionLevel(int, Enum):
+    """Five difficulty levels (1 to 5)."""
+
+    CONCEPTUAL = 1
+    UNDERSTANDING = 2
+    APPLICATION = 3
+    ENGINEERING = 4
+    ARCHITECTURE = 5
+
+
+class GeneratedQuestion(BaseModel):
+    """One interview question, grounded in a specific curriculum day."""
+
+    day: int
+    topic: str
+    level: QuestionLevel
+    question: str
+    is_followup: bool = False
+
+
+# ---------------------------------------------------------------------
+# Evaluation models
+# ---------------------------------------------------------------------
+
+
+class DecisionAction(str, Enum):
+    """Actions the decision engine can choose between."""
+
+    FOLLOW_UP = "FOLLOW_UP"
+    NEW_TOPIC = "NEW_TOPIC"
+    GO_DEEPER = "GO_DEEPER"
+    CLARIFY = "CLARIFY"
+    INCREASE_DIFFICULTY = "INCREASE_DIFFICULTY"
+    DECREASE_DIFFICULTY = "DECREASE_DIFFICULTY"
+    END_INTERVIEW = "END_INTERVIEW"
+
+
+class AnswerEvaluation(BaseModel):
+    """Structured judgement of one candidate answer."""
+
+    score: int = Field(ge=0, le=10)
+    understanding: Literal["strong", "moderate", "weak", "none"]
+    technical_correctness: Literal[
+        "correct", "mostly_correct", "partially_correct", "incorrect"
+    ]
+    strengths: list[str] = Field(default_factory=list)
+    missing_concepts: list[str] = Field(default_factory=list)
+    follow_up_needed: bool
+    recommended_action: DecisionAction
+
+
+class InterviewDecision(BaseModel):
+    """What the decision engine decided to do next, and why."""
+
+    action: DecisionAction
+    reason: str
+    target_level: Optional[QuestionLevel] = None
+
+
+class FinalFeedback(BaseModel):
+    """Technical spec required feedback schema."""
+
+    summary: str
+    strengths: list[str]
+    gaps: list[str]
+    next: list[str]
+
+
+# ---------------------------------------------------------------------
+# Interview Context & Session State
+# ---------------------------------------------------------------------
+
+
+class InterviewContext(BaseModel):
+    """Working memory for the AI Interview Brain."""
+
+    candidate: Candidate
+    conversation_history: list[ConversationTurn] = Field(default_factory=list)
+    question_count: int = 0
+    covered_curriculum_days: list[int] = Field(default_factory=list)
+    questions_per_day: dict[int, int] = Field(default_factory=dict)
+    asked_questions: list[GeneratedQuestion] = Field(default_factory=list)
+    current_topic: Optional[str] = None
+    current_difficulty: QuestionLevel = QuestionLevel.UNDERSTANDING
+    followups_used_on_current_question: int = 0
+    evaluations: list[AnswerEvaluation] = Field(default_factory=list)
+    strengths: list[str] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+
+
+class EngineSession(BaseModel):
+    """The Interview Engine's working state."""
 
     session_id: str
+    analysis: CandidateAnalysis
+    context: InterviewContext
+    focus_days: list[int] = Field(default_factory=list)
+    focus_day_index: int = 0
+    topics_covered: list[str] = Field(default_factory=list)
+    current_question: Optional[GeneratedQuestion] = None
+    done: bool = False
+    final_feedback: Optional[FinalFeedback] = None
 
-    # The candidate this session belongs to. Set once, at session start.
+
+class InterviewSession(BaseModel):
+    """The full state of one candidate's interview."""
+
+    session_id: str
     candidate: Candidate
-
-    # Every line said so far, in order. This is how "conversation
-    # context" is maintained across multiple HTTP requests.
     conversation_history: list[ConversationTurn] = Field(default_factory=list)
-
-    # How many interview questions have been asked so far.
-    # The hackathon spec requires at least 8 by the end of the interview.
     question_count: int = 0
-
-    # Which curriculum days (by day number) have already been asked
-    # about. The hackathon spec requires at least 4 distinct days.
     covered_curriculum_days: list[int] = Field(default_factory=list)
-
-    # What topic/day the interviewer is currently focused on.
-    # None until Part 2 picks the first topic.
     current_topic: Optional[str] = None
-
-    # A simple difficulty label the AI brain can adjust over time.
-    # Kept as a plain string for now; Part 2 decides the real values
-    # (e.g. "easy", "medium", "hard").
     current_difficulty: str = "medium"
-
-    # Whether the interview is still going or has finished.
     status: InterviewStatus = InterviewStatus.IN_PROGRESS
-
-    # Evaluations and feedback data
     evaluations: list[dict] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
     gaps: list[str] = Field(default_factory=list)

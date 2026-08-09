@@ -24,7 +24,7 @@ The seven possible actions (from the hackathon brief):
 """
 
 from app.config import MINIMUM_CURRICULUM_DAYS_COVERED, MINIMUM_QUESTIONS
-from app.models.ai_models import (
+from app.models.session import (
     AnswerEvaluation,
     DecisionAction,
     InterviewContext,

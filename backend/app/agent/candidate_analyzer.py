@@ -15,7 +15,7 @@ parts that actually need language understanding: writing questions,
 judging free-text answers, and writing feedback prose.
 """
 
-from app.models.ai_models import CandidateAnalysis, MissionSignal, MissionSignalStrength
+from app.models.session import CandidateAnalysis, MissionSignal, MissionSignalStrength
 from app.models.candidate import Candidate, CandidateMission
 from app.services import curriculum_service
 from app.config import MINIMUM_CURRICULUM_DAYS_COVERED
@@ -38,12 +38,12 @@ def _score_mission(mission: CandidateMission) -> MissionSignal:
     - failed (passed is False)   -> WEAK (weak evidence, they tried and struggled)
     - no data at all             -> NONE
     """
-    if mission.skipped:
+    if mission.skipped or (mission.passed is None and (mission.attempts is None or mission.attempts == 0)):
         return MissionSignal(
             day=mission.day,
             title=mission.title,
             strength=MissionSignalStrength.NONE,
-            reason="Skipped - no evidence the candidate ever studied this topic.",
+            reason="Skipped / unattempted - no evidence the candidate ever studied this topic.",
         )
 
     if mission.passed is True:
@@ -80,12 +80,11 @@ def _score_mission(mission: CandidateMission) -> MissionSignal:
             reason="Attempted but did not pass - weak evidence, worth probing gently.",
         )
 
-    # passed is None and not skipped: no usable data.
     return MissionSignal(
         day=mission.day,
         title=mission.title,
         strength=MissionSignalStrength.NONE,
-        reason="No completion data available for this mission.",
+        reason="Skipped / no completion data available for this mission.",
     )
 
 
@@ -161,7 +160,7 @@ def analyze_candidate(candidate: Candidate) -> CandidateAnalysis:
     mission_signals = [_score_mission(m) for m in candidate.missions]
 
     strong_days = [s.day for s in mission_signals if s.strength == MissionSignalStrength.STRONG]
-    weak_days = [s.day for s in mission_signals if s.strength == MissionSignalStrength.WEAK]
+    weak_days = [s.day for s in mission_signals if s.strength in (MissionSignalStrength.WEAK, MissionSignalStrength.MODERATE)]
     no_evidence_days = [s.day for s in mission_signals if s.strength == MissionSignalStrength.NONE]
 
     focus_days = _select_focus_days(mission_signals)

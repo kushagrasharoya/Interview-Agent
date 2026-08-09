@@ -34,7 +34,7 @@ the one producing it.
 """
 
 from app.models.candidate import Candidate
-from app.models.ai_models import (
+from app.models.session import (
     AnswerEvaluation,
     CandidateAnalysis,
     GeneratedQuestion,

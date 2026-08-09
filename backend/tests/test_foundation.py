@@ -18,7 +18,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services import candidate_service, curriculum_service, interview_engine, session_service
+from app.engine import interview_engine
+from app.services import candidate_service, curriculum_service, session_service
 
 client = TestClient(app)
 
@@ -48,7 +49,7 @@ def reset_stores_and_mock_llm(monkeypatch):
         counter["n"] += 1
         return {"question": f"Generated interview question #{counter['n']}?"}
 
-    monkeypatch.setattr("app.ai.llm_service.generate_json", fake_generate_json)
+    monkeypatch.setattr("app.services.llm_service.generate_json", fake_generate_json)
     yield
 
 
