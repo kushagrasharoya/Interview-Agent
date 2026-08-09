@@ -16,11 +16,11 @@
  * human-readable message the UI can show directly.
  */
 
-// Auto-detect API URL: if on separate static dev port (5500/5173/3000), point to 8000;
+// Auto-detect API URL: if on file:// protocol or separate static dev port (5500/5173/3000), point to 8000;
 // otherwise use current origin (for production deployment and single-server run).
-const API_BASE_URL = (typeof window !== "undefined" && window.location && window.location.port && ["5500", "5173", "3000"].includes(window.location.port))
+const API_BASE_URL = (typeof window !== "undefined" && window.location && (window.location.protocol === "file:" || ["5500", "5173", "3000"].includes(window.location.port) || window.location.origin === "null"))
   ? "http://127.0.0.1:8000"
-  : (typeof window !== "undefined" && window.location ? window.location.origin : "http://127.0.0.1:8000");
+  : (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin !== "null" ? window.location.origin : "http://127.0.0.1:8000");
 
 /**
  * Thrown whenever a call to the backend fails, for any reason

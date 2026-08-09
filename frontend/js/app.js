@@ -8,22 +8,37 @@ async function loadRoster() {
   UI.setRosterStatus("loading candidate roster\u2026", true);
 
   try {
-    const response = await fetch("assets/candidates.json").catch(() => fetch("data/candidates.json"));
-    if (!response.ok) {
-      throw new Error("Bad status " + response.status);
+    let data = null;
+    try {
+      const response = await fetch("assets/candidates.json").catch(() => fetch("data/candidates.json"));
+      if (response && response.ok) {
+        data = await response.json();
+      }
+    } catch (fetchErr) {
+      // file:// protocol blocks fetch(); will use fallback below
     }
-    const data = await response.json();
-    AppState.candidates = data.candidates || [];
+
+    if (data && data.candidates && data.candidates.length > 0) {
+      AppState.candidates = data.candidates;
+    } else if (typeof DEFAULT_CANDIDATES !== "undefined" && DEFAULT_CANDIDATES.length > 0) {
+      AppState.candidates = DEFAULT_CANDIDATES;
+    }
 
     if (AppState.candidates.length === 0) {
-      UI.setRosterStatus("No candidates found in candidates.json.", true);
+      UI.setRosterStatus("No candidates found.", true);
       return;
     }
 
     UI.setRosterStatus("", false);
     UI.renderRoster(AppState.candidates, onCandidateSelected);
   } catch (err) {
-    UI.setRosterStatus("Couldn't load candidate roster. Check file and reload.", true);
+    if (typeof DEFAULT_CANDIDATES !== "undefined" && DEFAULT_CANDIDATES.length > 0) {
+      AppState.candidates = DEFAULT_CANDIDATES;
+      UI.setRosterStatus("", false);
+      UI.renderRoster(AppState.candidates, onCandidateSelected);
+    } else {
+      UI.setRosterStatus("Couldn't load candidate roster. Check file and reload.", true);
+    }
   }
 }
 

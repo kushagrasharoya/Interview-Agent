@@ -1,0 +1,124 @@
+/**
+ * candidates_data.js
+ *
+ * Embedded fallback candidate roster for environments where fetch() is blocked
+ * (such as opening index.html directly via file:// protocol).
+ */
+
+window.DEFAULT_CANDIDATES = [
+  {
+    "member": {
+      "id": "CAND-001",
+      "name": "Sarah Johnson",
+      "jobRole": "Senior Data Engineer",
+      "yearsExperience": 9,
+      "education": "MS Computer Science",
+      "status": "COMPLETED"
+    },
+    "missions": [
+      { "day": 7, "title": "Embeddings Explained", "passed": true, "attempts": 1 },
+      { "day": 8, "title": "Vector Databases Overview", "passed": true, "attempts": 1 },
+      { "day": 10, "title": "Retrieval & Matching Engine", "passed": true, "attempts": 2 },
+      { "day": 12, "title": "Prompt Engineering Fundamentals", "passed": true, "attempts": 4 },
+      { "day": 16, "title": "Chatbot Backend & API Integration", "passed": true, "attempts": 1 },
+      { "day": 22, "title": "Multi-Agent Orchestration", "passed": true, "attempts": 2 },
+      { "day": 23, "title": "Model Context Protocol (MCP)", "passed": true, "attempts": 2 },
+      { "day": 28, "title": "Docker & Kubernetes Deployment", "passed": true, "attempts": 3 },
+      { "day": 29, "title": "Monitoring, Logging & Observability", "skipped": true },
+      { "day": 31, "title": "Capstone Project & Final Demo", "passed": true, "attempts": 1 }
+    ],
+    "signals": { "commitDays": 28, "missionsCompleted": 30, "missionsFirstTry": 20 }
+  },
+  {
+    "member": {
+      "id": "CAND-002",
+      "name": "Alex Turner",
+      "jobRole": "Backend Software Engineer",
+      "yearsExperience": 5,
+      "education": "B.Tech Computer Science",
+      "status": "COMPLETED"
+    },
+    "missions": [
+      { "day": 7, "title": "Embeddings Explained", "passed": true, "attempts": 3 },
+      { "day": 8, "title": "Vector Databases Overview", "passed": true, "attempts": 2 },
+      { "day": 10, "title": "Retrieval & Matching Engine", "passed": true, "attempts": 4 },
+      { "day": 12, "title": "Prompt Engineering Fundamentals", "passed": true, "attempts": 5 },
+      { "day": 13, "title": "Function Calling & Structured Outputs", "passed": true, "attempts": 4 },
+      { "day": 16, "title": "Chatbot Backend & API Integration", "passed": true, "attempts": 1 },
+      { "day": 18, "title": "Streaming Responses", "passed": true, "attempts": 1 },
+      { "day": 22, "title": "Multi-Agent Orchestration", "passed": true, "attempts": 3 },
+      { "day": 28, "title": "Docker & Kubernetes Deployment", "passed": true, "attempts": 1 },
+      { "day": 31, "title": "Capstone Project & Final Demo", "passed": true, "attempts": 2 }
+    ],
+    "signals": { "commitDays": 22, "missionsCompleted": 29, "missionsFirstTry": 10 }
+  },
+  {
+    "member": {
+      "id": "CAND-003",
+      "name": "Emily Chen",
+      "jobRole": "AI Engineer",
+      "yearsExperience": 6,
+      "education": "MS Artificial Intelligence",
+      "status": "COMPLETED"
+    },
+    "missions": [
+      { "day": 7, "title": "Embeddings Explained", "passed": true, "attempts": 1 },
+      { "day": 8, "title": "Vector Databases Overview", "passed": true, "attempts": 1 },
+      { "day": 10, "title": "Retrieval & Matching Engine", "passed": true, "attempts": 1 },
+      { "day": 11, "title": "RAG End-to-End & LLM API Basics", "passed": true, "attempts": 1 },
+      { "day": 12, "title": "Prompt Engineering Fundamentals", "passed": true, "attempts": 1 },
+      { "day": 13, "title": "Function Calling & Structured Outputs", "passed": true, "attempts": 1 },
+      { "day": 21, "title": "LangChain Agents", "passed": true, "attempts": 1 },
+      { "day": 22, "title": "Multi-Agent Orchestration", "passed": true, "attempts": 1 },
+      { "day": 23, "title": "Model Context Protocol (MCP)", "passed": true, "attempts": 1 },
+      { "day": 31, "title": "Capstone Project & Final Demo", "passed": true, "attempts": 1 }
+    ],
+    "signals": { "commitDays": 31, "missionsCompleted": 31, "missionsFirstTry": 30 }
+  },
+  {
+    "member": {
+      "id": "CAND-004",
+      "name": "David Miller",
+      "jobRole": "Business Analyst",
+      "yearsExperience": 8,
+      "education": "MBA",
+      "status": "COMPLETED"
+    },
+    "missions": [
+      { "day": 7, "title": "Embeddings Explained", "passed": true, "attempts": 4 },
+      { "day": 8, "title": "Vector Databases Overview", "passed": true, "attempts": 5 },
+      { "day": 10, "title": "Retrieval & Matching Engine", "passed": true, "attempts": 5 },
+      { "day": 12, "title": "Prompt Engineering Fundamentals", "passed": true, "attempts": 3 },
+      { "day": 16, "title": "Chatbot Backend & API Integration", "passed": true, "attempts": 2 },
+      { "day": 20, "title": "Conversation Memory & Context Management", "passed": true, "attempts": 3 },
+      { "day": 22, "title": "Multi-Agent Orchestration", "passed": true, "attempts": 4 },
+      { "day": 23, "title": "Model Context Protocol (MCP)", "passed": true, "attempts": 5 },
+      { "day": 28, "title": "Docker & Kubernetes Deployment", "skipped": true },
+      { "day": 31, "title": "Capstone Project & Final Demo", "passed": true, "attempts": 2 }
+    ],
+    "signals": { "commitDays": 18, "missionsCompleted": 28, "missionsFirstTry": 6 }
+  },
+  {
+    "member": {
+      "id": "CAND-005",
+      "name": "Michael Brown",
+      "jobRole": "DevOps Engineer",
+      "yearsExperience": 10,
+      "education": "B.Tech Information Technology",
+      "status": "COMPLETED"
+    },
+    "missions": [
+      { "day": 7, "title": "Embeddings Explained", "passed": true, "attempts": 2 },
+      { "day": 8, "title": "Vector Databases Overview", "passed": true, "attempts": 2 },
+      { "day": 10, "title": "Retrieval & Matching Engine", "passed": true, "attempts": 2 },
+      { "day": 12, "title": "Prompt Engineering Fundamentals", "passed": true, "attempts": 4 },
+      { "day": 18, "title": "Streaming Responses", "passed": true, "attempts": 1 },
+      { "day": 22, "title": "Multi-Agent Orchestration", "passed": true, "attempts": 2 },
+      { "day": 23, "title": "Model Context Protocol (MCP)", "passed": true, "attempts": 3 },
+      { "day": 28, "title": "Docker & Kubernetes Deployment", "passed": true, "attempts": 1 },
+      { "day": 29, "title": "Monitoring, Logging & Observability", "passed": true, "attempts": 1 },
+      { "day": 31, "title": "Capstone Project & Final Demo", "passed": true, "attempts": 1 }
+    ],
+    "signals": { "commitDays": 30, "missionsCompleted": 31, "missionsFirstTry": 22 }
+  }
+];
