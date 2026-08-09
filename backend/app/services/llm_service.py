@@ -353,10 +353,12 @@ def _mock_llm_response(system_prompt: str, user_prompt: str) -> str:
         day_info = CURRICULUM_QUESTIONS.get(day_num, CURRICULUM_QUESTIONS[7])
         
         # Clarification vs deep dive
-        if "none" in lower or "incorrect" in lower or "clarify" in lower:
-            q = f"Let's refocus on {day_info['title']}. Could you describe the fundamental setup and basic workflow you used in that day's mission?"
+        if "samosa" in lower or "food" in lower or "pizza" in lower:
+            q = f"Haha, that sounds delicious! But let's refocus on our technical topic for {day_info['title']}: could you explain how you approached the core setup and implementation in that day's mission?"
+        elif "none" in lower or "incorrect" in lower or "clarify" in lower:
+            q = f"Let's step back and refocus on {day_info['title']}. Could you walk me through the fundamental concepts and basic workflow you implemented in that mission?"
         else:
-            q = f"Could you elaborate further on {day_info['title']}—specifically, what practical engineering trade-offs and edge cases did you encounter?"
+            q = f"Thanks for explaining that. Building on your answer for {day_info['title']}, could you elaborate specifically on what practical engineering trade-offs and edge cases you encountered?"
         
         return json.dumps({
             "question": q,

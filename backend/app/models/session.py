@@ -73,6 +73,18 @@ class CandidateAnalysis(BaseModel):
 # ---------------------------------------------------------------------
 
 
+class QuestionType(str, Enum):
+    """The pedagogical style/nature of an interview question."""
+
+    CONCEPTUAL = "conceptual"
+    EXPLANATION = "explanation"
+    APPLICATION = "application"
+    DEBUGGING = "debugging"
+    TRADEOFF = "tradeoff"
+    SYSTEM_DESIGN = "system_design"
+    SCENARIO = "scenario"
+
+
 class QuestionLevel(int, Enum):
     """Five difficulty levels (1 to 5)."""
 
@@ -90,6 +102,8 @@ class GeneratedQuestion(BaseModel):
     topic: str
     level: QuestionLevel
     question: str
+    type: Optional[QuestionType] = None
+    target_concepts: list[str] = Field(default_factory=list)
     is_followup: bool = False
 
 
@@ -120,6 +134,7 @@ class AnswerEvaluation(BaseModel):
     ]
     strengths: list[str] = Field(default_factory=list)
     missing_concepts: list[str] = Field(default_factory=list)
+    misconceptions: list[str] = Field(default_factory=list)
     follow_up_needed: bool
     recommended_action: DecisionAction
 
