@@ -106,7 +106,7 @@ def decide_next_action(
 
     # 4. Candidate is doing very well (before interview completion).
     if evaluation.score >= STRONG_SCORE_THRESHOLD:
-        if questions_on_current_day < MAX_QUESTIONS_PER_DAY_BEFORE_MOVING_ON:
+        if questions_on_current_day < MAX_QUESTIONS_PER_DAY_BEFORE_MOVING_ON and context.current_difficulty.value < QuestionLevel.ARCHITECTURE.value:
             return InterviewDecision(
                 action=DecisionAction.GO_DEEPER,
                 reason=(
@@ -117,7 +117,7 @@ def decide_next_action(
             )
         return InterviewDecision(
             action=DecisionAction.INCREASE_DIFFICULTY,
-            reason="Candidate has shown strong understanding across this topic - raise the bar and move on.",
+            reason="Candidate has shown strong understanding across this topic - raise the bar and move to a new curriculum day.",
             target_level=_clamp_level(context.current_difficulty, 1),
         )
 

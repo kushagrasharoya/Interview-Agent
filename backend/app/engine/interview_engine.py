@@ -315,13 +315,21 @@ def _apply_decision(
         return question
 
     # GO_DEEPER / DECREASE_DIFFICULTY: fresh (non-follow-up) question,
-    # same curriculum day, adjusted difficulty.
+    # same curriculum day if not saturated, or advance to next curriculum day.
     if action in (DecisionAction.GO_DEEPER, DecisionAction.DECREASE_DIFFICULTY):
         level = decision.target_level or context.current_difficulty
-        question = _generate_fresh_question(candidate, engine_session, target_day=current_day, level=level)
+        # If we already asked >= 2 questions on this day, advance to the next topic to ensure breadth
+        if context.questions_per_day.get(current_day, 0) >= 2:
+            target_day = _next_focus_day(engine_session)
+            is_new = True
+        else:
+            target_day = current_day
+            is_new = False
+
+        question = _generate_fresh_question(candidate, engine_session, target_day=target_day, level=level)
         context.current_difficulty = level
         context.followups_used_on_current_question = 0
-        _record_question(engine_session, question, new_day=False)
+        _record_question(engine_session, question, new_day=is_new)
         return question
 
     # NEW_TOPIC / INCREASE_DIFFICULTY: move on to a new curriculum day.

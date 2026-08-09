@@ -83,11 +83,22 @@ def generate_question(
     )
 
     if _is_repeat(question.question, context):
-        # We don't raise here - a duplicate question is a degraded
-        # experience, not a broken one. Logged so it's visible during
-        # development/demo, and Part 3 can decide how to react
-        # (e.g. retry once with a stronger warning in the prompt).
-        print(f"[question_generator] Warning: generated a duplicate question: {question.question!r}")
+        # Prevent repeating identical questions by pulling from curriculum objectives
+        objectives = curriculum_day.get("objectives", [])
+        alt_q = None
+        for obj in objectives:
+            candidate_text = f"Regarding {curriculum_day['title']}: {obj} — how did you design and implement this in practice?"
+            if not _is_repeat(candidate_text, context):
+                alt_q = candidate_text
+                break
+        if alt_q:
+            question = GeneratedQuestion(
+                day=target_day,
+                topic=curriculum_day["title"],
+                level=level,
+                question=alt_q,
+                is_followup=False,
+            )
 
     return question
 
@@ -113,7 +124,7 @@ def generate_followup_question(
     )
 
     raw = llm_service.generate_json(system_prompt, user_prompt)
-    return GeneratedQuestion.model_validate(
+    followup = GeneratedQuestion.model_validate(
         {
             "day": raw.get("day", previous_question.day),
             "topic": raw.get("topic", previous_question.topic),
@@ -122,3 +133,16 @@ def generate_followup_question(
             "is_followup": True,
         }
     )
+
+    if _is_repeat(followup.question, context := InterviewContext(candidate=candidate, asked_questions=context.asked_questions if 'context' in locals() else [])):
+        missing = ", ".join(evaluation.missing_concepts) or "this topic"
+        alt_followup = f"Could you provide a concrete example of how you implemented {missing} on Day {previous_question.day} ({curriculum_day['title']})?"
+        followup = GeneratedQuestion(
+            day=previous_question.day,
+            topic=previous_question.topic,
+            level=previous_question.level,
+            question=alt_followup,
+            is_followup=True,
+        )
+
+    return followup
