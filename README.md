@@ -1,305 +1,195 @@
-# The Interview Agent — Part 1: Foundation
+# The Interview Agent
 
-This is **Part 1 of 5** of "The Interview Agent," an AI technical
-interviewer built for the AI Cohort hackathon.
-
-Part 1 does **not** run a real AI interview yet. It builds the
-foundation everything else will be built on: a working web server, the
-required `POST /api/interview` endpoint, and the data/session
-plumbing behind it. Where the real AI logic will eventually go, you'll
-see a placeholder reply and a comment saying "Part 2 goes here."
+> **An adaptive AI Technical Interviewer grounded in curriculum objectives, candidate learning signals, and multi-turn conversational reasoning.**
 
 ---
 
-## 1. Big picture: what is this project?
+## 1. Problem Statement
+The 31-day enterprise AI Cohort covers modern applied AI topics:
+- Dense Vector Retrieval & Embeddings
+- Vector Databases (HNSW Indexing & Metric Spaces)
+- Prompt Engineering & Structured Outputs
+- Agentic AI & Tool Calling (LangChain / ReAct)
+- Model Context Protocol (MCP)
+- Production AI Deployment (Docker, Kubernetes, Observability)
 
-Imagine a real technical interviewer. They:
-
-- Know the candidate's background (what they studied, what they built).
-- Ask questions.
-- Listen to the answers and ask smart follow-up questions.
-- At the end, summarize how the candidate did.
-
-"The Interview Agent" is a program that does this automatically, using
-the candidate's actual progress through the "AI Cohort" course
-(`candidates.json`) and the course content itself (`curriculum.json`)
-to ask relevant questions.
-
-The **backend** (the part we built in Part 1) is the "brain and
-memory" — it runs on a server, keeps track of each interview in
-progress, and will (starting in Part 2) generate the interviewer's
-questions. The **frontend** (Part 4) will be the chat window a
-candidate actually types into.
+After completing the cohort, learners must explain the systems they built and defend their engineering tradeoffs in technical interviews. Preparing for realistic interviews and communicating complex technical concepts remains one of the hardest hurdles for engineers.
 
 ---
 
-## 2. What each folder does
+## 2. What The Project Does
+**The Interview Agent** conducts realistic, personalized, multi-turn technical interviews tailored to each candidate's learning journey:
+- Reads candidate mission attempts, completions, and skipped topics to identify genuine learning signals.
+- Grounds technical questions directly in the 31-day curriculum objectives.
+- Evaluates candidate answers in real time, identifying technical strengths and missing concepts.
+- Generates contextual follow-ups when gaps are detected or raises difficulty when strong understanding is demonstrated.
+- Enforces strict interview completion rules ($\ge 8$ questions across $\ge 4$ unique curriculum days).
+- Synthesizes post-interview structured feedback (`summary`, `strengths`, `gaps`, `next`).
+
+---
+
+## 3. Key Features
+1. **Curriculum-Grounded Question Generation**: Questions are grounded in real tools and objectives from `curriculum.json`.
+2. **Learning Signal Extraction**: Distinguishes between clean 1st-try passes (strong signal), multi-try passes (moderate signal), failures (weak signal), and skipped days (no evidence).
+3. **Structured Answer Evaluation**: Evaluates answers with 0–10 scoring, technical correctness checks, and missing concept extraction.
+4. **Adaptive 7-Action Decision Engine**: Deterministically chooses `FOLLOW_UP`, `GO_DEEPER`, `CLARIFY`, `INCREASE_DIFFICULTY`, `DECREASE_DIFFICULTY`, `NEW_TOPIC`, or `END_INTERVIEW`.
+5. **Hard Completion Enforcer**: Guarantees $\ge 8$ questions and $\ge 4$ unique curriculum days before allowing the interview to finish.
+6. **Multi-Provider LLM Service**: Supports Anthropic Claude, Google Gemini, OpenAI, or offline Mock fallback.
+7. **Single-Endpoint API Contract**: Exposes `POST /api/interview` with session memory keyed by `sessionId`.
+8. **Modern Responsive UI**: Dark-mode web interface with live arena transcript, progress tape, typing indicator, and scorecard.
+
+---
+
+## 4. Architecture & Flow Diagram
 
 ```
-the-interview-agent/
-├── README.md              ← you are here
-├── PROMPTS.md              ← placeholder; filled in properly in Part 5
-├── technical-spec.md       ← the API contract we must not break
+Frontend Client (Browser)
+            │
+            ▼  POST /api/interview { sessionId, candidate | message }
+   FastAPI Server (backend/app/main.py)
+            │
+            ▼
+   Interview Router (backend/app/api/interview.py)
+            │
+            ▼
+   Interview Engine (backend/app/engine/interview_engine.py)
+            │
+     ┌──────┴──────────────────────────────────────────────────────┐
+     │                                                             │
+     ▼                                                             ▼
+Data Services (backend/app/services/)                 AI Agent (backend/app/agent/)
+├── candidate_service.py (candidates.json)           ├── candidate_analyzer.py (signal analysis)
+├── curriculum_service.py (curriculum.json)          ├── question_generator.py (grounded questions)
+├── session_service.py (in-memory store)             ├── answer_evaluator.py (structured scoring)
+└── llm_service.py (Gemini / Claude / OpenAI)        ├── decision_engine.py (7-action state machine)
+                                                     ├── feedback_generator.py (final assessment)
+                                                     └── prompts.py (system personas & templates)
+```
+
+---
+
+## 5. Tech Stack
+- **Backend**: Python 3.10+, FastAPI, Uvicorn, Pydantic v2
+- **Testing**: pytest, pytest-asyncio, HTTPX / Starlette TestClient (58 automated tests)
+- **AI / LLMs**: Google Gemini (`google-genai`), Anthropic (`anthropic`), OpenAI (`openai`)
+- **Frontend**: Vanilla HTML5, CSS3 (custom dark-mode design system), Modern ES6 JavaScript
+
+---
+
+## 6. Project Structure
+
+```
+Interview-Agent/
+├── README.md                          ← Main project documentation
+├── PROMPTS.md                         ← AI development log & system prompts
+├── technical-spec.md                  ← API specification
 ├── .gitignore
 │
-├── backend/                ← everything that runs the server
-│   ├── requirements.txt    ← list of Python packages this project needs
-│   ├── app/                ← the actual application code
-│   │   ├── main.py         ← starts the web server
-│   │   ├── config.py       ← file paths & constants, kept in one place
-│   │   ├── api/             ← handles HTTP requests/responses
-│   │   ├── models/          ← describes the "shape" of our data
-│   │   └── services/        ← the logic that reads data & manages sessions
-│   ├── data/                ← the provided JSON files live here (unedited)
-│   └── tests/                ← automated tests
+├── backend/
+│   ├── requirements.txt               ← Backend dependencies
+│   ├── .env.example                   ← Environment variables template
+│   │
+│   ├── app/
+│   │   ├── main.py                    ← FastAPI entrypoint & static mount
+│   │   ├── config.py                  ← Constants & file paths
+│   │   │
+│   │   ├── api/
+│   │   │   └── interview.py           ← POST /api/interview endpoint
+│   │   │
+│   │   ├── models/
+│   │   │   ├── candidate.py           ← Candidate data validation schemas
+│   │   │   └── session.py             ← Session, context, and evaluation schemas
+│   │   │
+│   │   ├── services/
+│   │   │   ├── candidate_service.py   ← candidates.json loader
+│   │   │   ├── curriculum_service.py  ← curriculum.json loader
+│   │   │   ├── session_service.py     ← In-memory session store
+│   │   │   └── llm_service.py         ← Central multi-provider LLM caller
+│   │   │
+│   │   ├── agent/
+│   │   │   ├── candidate_analyzer.py  ← Deterministic learning signal extractor
+│   │   │   ├── question_generator.py  ← Curriculum-grounded question generator
+│   │   │   ├── answer_evaluator.py    ← Structured 0-10 answer evaluator
+│   │   │   ├── decision_engine.py     ← 7-action adaptive state machine
+│   │   │   ├── feedback_generator.py  ← Final structured feedback synthesizer
+│   │   │   └── prompts.py             ← System prompts and formatting templates
+│   │   │
+│   │   └── engine/
+│   │       └── interview_engine.py    ← E2E Interview lifecycle orchestrator
+│   │
+│   ├── data/
+│   │   ├── candidates.json            ← Synthetic AI cohort candidates
+│   │   └── curriculum.json            ← 31-day course curriculum
+│   │
+│   └── tests/
+│       ├── test_foundation.py         ← Part 1 tests (8 passed)
+│       ├── test_ai_brain.py           ← Part 2 tests (17 passed)
+│       ├── test_interview_engine.py   ← Part 3 tests (16 passed)
+│       └── test_e2e_scenarios.py      ← Part 5 tests (17 passed)
 │
-└── frontend/                ← empty for now; built in Part 4
-```
-
-Think of it like a restaurant:
-- `models/` = the recipe cards (what a valid dish looks like).
-- `services/` = the kitchen (does the actual work: fetching
-  ingredients, cooking).
-- `api/` = the waiter (takes the customer's order, brings back food,
-  speaks "HTTP" to the outside world).
-- `main.py` = the restaurant's front door / open sign.
-
----
-
-## 3. What each Python file does
-
-### `app/main.py`
-Starts the FastAPI web server and plugs in the interview endpoint.
-This is the file you actually run.
-
-### `app/config.py`
-Holds file paths (where `candidates.json` and `curriculum.json` live)
-and a couple of constants (like "minimum 8 questions"). Having one
-place for these means we never have to hunt through multiple files to
-change a path or a number later.
-
-### `app/models/candidate.py`
-Describes what a valid **candidate** object looks like (using
-Pydantic — see below). It does not contain any real candidate data,
-just the *shape* that data must follow.
-
-### `app/models/session.py`
-Describes what a valid **interview session** looks like while an
-interview is happening: which candidate it belongs to, the
-conversation so far, how many questions have been asked, which
-curriculum days have been covered, and so on.
-
-### `app/services/candidate_service.py`
-Reads `data/candidates.json` from disk and turns it into validated
-`Candidate` objects. Also has a function to find one candidate by ID.
-This is the *only* file in the project that knows candidate data comes
-from a JSON file — everyone else just asks it questions.
-
-### `app/services/curriculum_service.py`
-Same idea, but for `data/curriculum.json`: reads the file, and lets
-other code ask things like "what is day 7 about?" or "which module is
-day 12 part of?"
-
-### `app/services/session_service.py`
-Keeps interview sessions in memory (a Python dictionary) while the
-server is running, keyed by `sessionId`. Supports create / get /
-update / delete. This is what lets the interview "remember" the
-conversation across multiple separate HTTP requests.
-
-### `app/api/interview.py`
-The only HTTP route in this project: `POST /api/interview`. Reads the
-incoming JSON, figures out if it's a "start" or "continue" request,
-calls the session service, and returns JSON shaped exactly like the
-technical spec requires.
-
-### `tests/test_foundation.py`
-Automated checks that everything above actually works (server starts,
-sessions are created and remembered, data loads correctly, etc).
-
----
-
-## 4. Key concepts, explained simply
-
-### What is FastAPI?
-FastAPI is a Python tool for building web servers — programs that
-listen for requests over the internet (or your local network) and
-send back responses. We use it because it's beginner-friendly, fast,
-and works very well with Pydantic (see next).
-
-### What is Pydantic?
-Pydantic lets us describe the "shape" of data as a Python class (e.g.
-"a Candidate must have a name, which must be text"). When data comes
-in, Pydantic automatically checks it against that shape and gives a
-clear error if something's missing or wrong — instead of the program
-crashing confusingly later on.
-
-### What is a POST endpoint?
-A "POST" request is one of the ways a program on the internet can ask
-a server to *do something with data it's sending along* (as opposed to
-"GET," which just asks the server to hand back data). Our frontend
-(later) will POST a JSON object like `{"sessionId": "...", "message":
-"..."}` to `/api/interview`, and the server sends a response back.
-
-### What is JSON?
-JSON (JavaScript Object Notation) is a plain-text way of writing
-structured data using `{ }` for objects, `[ ]` for lists, and
-`"key": value` pairs. It's the format almost all web APIs — including
-ours — use to send data back and forth. `candidates.json` and
-`curriculum.json` are both just JSON files sitting on disk.
-
-### What does `sessionId` mean?
-Since the server can be talking to many candidates' interviews at
-once, and HTTP requests don't remember each other automatically, every
-request needs to say *which* interview it belongs to. `sessionId` is
-that label — a unique ID the frontend makes up once at the start of an
-interview and then repeats on every following request, so the server
-knows which conversation to continue.
-
----
-
-## 5. How the data files are used
-
-- **`candidates.json`** is read once (and cached) by
-  `candidate_service.py`. When an interview starts, the frontend sends
-  a candidate's data in the request; we validate it against our
-  `Candidate` model and store it inside that interview's session. In
-  Part 2, the AI brain will look at a candidate's `missions` (passed /
-  skipped / attempts) to decide which topics to focus on.
-
-- **`curriculum.json`** is read once (and cached) by
-  `curriculum_service.py`. It's not used much yet in Part 1 — but
-  Part 2 will use `get_day(day_number)` to pull real objectives and
-  tools for a given day, so the interviewer's questions are grounded
-  in the actual course content instead of made up.
-
-Neither file is ever modified by the app — we only ever read them.
-
----
-
-## 6. How the frontend will connect later (Part 4)
-
-The frontend doesn't exist yet, but when it's built, it will simply
-send `POST` requests to `http://<server-address>/api/interview` — the
-exact same endpoint and JSON shapes shown in the example below. Because
-we've already built and tested that contract in Part 1, the frontend
-work in Part 4 shouldn't require any backend changes.
-
-## 7. How Part 2 will connect to this foundation
-
-Part 2 is the "AI Interview Brain" — the part that actually decides
-what to ask. It will plug in inside `app/api/interview.py`, specifically
-in the "MODE 2: CONTINUE INTERVIEW" section, replacing the placeholder
-reply with a real call to an AI brain module. That module will read:
-
-- `session.candidate` (to know the candidate's background/progress)
-- `session.conversation_history` (to know what's been said)
-- `curriculum_service.get_day(...)` (to ground questions in real
-  course content)
-
-...and return the next question or a final feedback object. Nothing
-about the session model, the services, or the API's request/response
-shape needs to change for that to happen — that's the point of
-building the foundation this way.
-
-Planned overall flow (later parts fill in the middle):
-
-```
-Frontend
-   ↓
-POST /api/interview
-   ↓
-FastAPI (app/api/interview.py)
-   ↓
-Interview Engine        ← Part 3
-   ↓
-Candidate Service   →   Curriculum Service   →   Session Service   (all Part 1, done)
-   ↓
-AI Interview Brain       ← Part 2
-   ↓
-Response
+└── frontend/
+    ├── index.html                     ← 3-screen interface
+    ├── css/
+    │   └── style.css                  ← Responsive dark-mode styling
+    ├── js/
+    │   ├── app.js                     ← UI lifecycle coordinator
+    │   ├── api.js                     ← Network fetch client
+    │   ├── state.js                   ← Client state manager
+    │   └── ui.js                      ← DOM renderer & view transitions
+    ├── assets/
+    │   └── candidates.json            ← Roster picker dataset
+    └── README.md
 ```
 
 ---
 
-## 8. Running this project locally
-
-All commands below assume you have Python 3.10+ installed, and that
-your terminal is open with `the-interview-agent/backend` as the
-current folder unless noted otherwise.
-
-### Step 1 — Create a virtual environment
-
-A virtual environment keeps this project's Python packages separate
-from everything else on your machine.
-
-```bash
-cd backend
-python -m venv .venv
-```
-
-### Step 2 — Activate it
-
-**On Windows (Command Prompt):**
-```bat
-.venv\Scripts\activate.bat
-```
-
-**On Windows (PowerShell):**
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-**On macOS / Linux:**
-```bash
-source .venv/bin/activate
-```
-
-You'll know it worked because your terminal prompt will show
-`(.venv)` at the start of the line.
-
-### Step 3 — Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### Step 4 — Start the FastAPI server
-
-```bash
-uvicorn app.main:app --reload
-```
-
-The server will start at `http://127.0.0.1:8000`. `--reload` makes it
-auto-restart whenever you save a code change, which is handy during
-development.
-
-You can open `http://127.0.0.1:8000/docs` in a browser to see an
-interactive page (auto-generated by FastAPI) where you can try the
-endpoint directly.
-
-### Step 5 — Run the tests
-
-In a **second terminal** (with the same virtual environment activated,
-from the `backend` folder):
-
-```bash
-pytest
-```
-
-You should see all 8 tests pass.
+## 7. How Candidate Data is Used
+Candidate data is loaded from `candidates.json` and validated through `Candidate` models:
+- **`jobRole` & `yearsExperience`**: Determines initial difficulty level (Junior $\to$ Conceptual, Mid $\to$ Understanding, Senior $\to$ Application).
+- **`missions` & `attempts`**:
+  - `1 attempt + passed` $\to$ **Strong Signal** (probe deep into architectural tradeoffs).
+  - `2+ attempts + passed` $\to$ **Moderate Signal** (inspect for conceptual gaps).
+  - `passed: false` $\to$ **Weak Signal** (probe gently with foundational questions).
+  - `skipped: true` $\to$ **No Evidence** (do not assume prior knowledge).
 
 ---
 
-## 9. Example request
+## 8. How Curriculum Data is Used
+Every question is grounded in `curriculum.json` (31 days across 9 modules):
+- `day` & `title`: Topic anchor.
+- `objectives`: Specific competencies tested in questions and evaluated in answers.
+- `tools`: Real frameworks (e.g. `HNSWLib`, `LangChain`, `FastAPI`, `Docker`, `MCP`).
 
-**Starting an interview:**
+---
 
-```
-POST http://127.0.0.1:8000/api/interview
-Content-Type: application/json
+## 9. How Adaptive Interviewing Works
 
+### 5-Level Difficulty Hierarchy
+1. **Level 1: Conceptual** — Core definitions and high-level principles.
+2. **Level 2: Understanding** — Mechanism explanations and design reasoning.
+3. **Level 3: Application** — Practical implementation and parameter selection.
+4. **Level 4: Engineering** — Edge cases, error recovery, and troubleshooting.
+5. **Level 5: Architecture** — End-to-end distributed system design and tradeoffs.
+
+### 7-Action Decision Machine
+- `FOLLOW_UP`: Probes an identified missing concept on the same question.
+- `GO_DEEPER`: Asks a higher-difficulty question on the same topic for strong answers.
+- `CLARIFY`: Rephrases or simplifies when a candidate struggles.
+- `INCREASE_DIFFICULTY`: Advances to higher difficulty on a new topic.
+- `DECREASE_DIFFICULTY`: Steps down difficulty when repeated struggle occurs.
+- `NEW_TOPIC`: Transitions to a new curriculum module.
+- `END_INTERVIEW`: Triggers completion when all minimum constraints are satisfied.
+
+---
+
+## 10. API Specification
+
+### `POST /api/interview`
+
+#### Mode 1: Start Interview
+```json
 {
-  "sessionId": "demo-1",
+  "sessionId": "session-123",
   "candidate": {
     "member": {
       "id": "CAND-001",
@@ -312,56 +202,168 @@ Content-Type: application/json
     "missions": [
       { "day": 7, "title": "Embeddings Explained", "passed": true, "attempts": 1 }
     ],
-    "signals": {
-      "commitDays": 28,
-      "missionsCompleted": 30,
-      "missionsFirstTry": 20
-    }
+    "signals": { "commitDays": 28, "missionsCompleted": 30, "missionsFirstTry": 20 }
   }
 }
 ```
-
-**Expected response:**
-
+**Response:**
 ```json
 {
-  "reply": "Welcome. Let's begin your interview.",
-  "done": false,
-  "feedback": null
+  "reply": "Welcome, Sarah Johnson! Let's begin your interview.\n\nHow do embedding vector dimensions impact search accuracy versus computational cost in dense retrieval?",
+  "done": false
 }
 ```
 
-**Continuing the interview** (same `sessionId`):
-
-```
-POST http://127.0.0.1:8000/api/interview
-Content-Type: application/json
-
-{
-  "sessionId": "demo-1",
-  "message": "I used FAISS for the vector store."
-}
-```
-
-**Expected response (Part 1 placeholder):**
-
+#### Mode 2: Continue Interview
 ```json
 {
-  "reply": "Interview session received. AI interviewer will be added in Part 2.",
-  "done": false,
-  "feedback": null
+  "sessionId": "session-123",
+  "message": "Higher dimensions capture richer semantic nuance, but increase cosine similarity compute and memory footprint."
+}
+```
+**Response (In Progress):**
+```json
+{
+  "reply": "Great answer. In a production vector database, how would you configure HNSW M and ef_construction parameters to balance indexing time against query latency?",
+  "done": false
+}
+```
+**Response (Final Turn):**
+```json
+{
+  "reply": "Interview completed.",
+  "done": true,
+  "feedback": {
+    "summary": "Sarah demonstrated strong mastery of embeddings and vector search architectures.",
+    "strengths": [
+      "Deep understanding of vector quantization and index tuning",
+      "Clear explanation of multi-agent orchestration"
+    ],
+    "gaps": [
+      "Could deepen observability and telemetry in distributed MCP setups"
+    ],
+    "next": [
+      "Review OpenTelemetry trace propagation in async agent graphs",
+      "Practice Kubernetes horizontal pod autoscaling for embedding services"
+    ]
+  }
 }
 ```
 
 ---
 
-## 10. What's next
+## 11. Local Setup & Installation
 
-- **Part 2:** AI Interview Brain — actually generating questions and
-  follow-ups from the candidate's data and curriculum.
-- **Part 3:** Full Interview Engine — enforcing the 8-question /
-  4-day minimums, tracking difficulty, and generating the final
-  structured feedback.
-- **Part 4:** Frontend — a simple chat UI.
-- **Part 5:** Testing, deployment, GitHub polish, and completing
-  `PROMPTS.md`.
+```bash
+# 1. Clone the repository
+git clone https://github.com/kushagrasharoya/Interview-Agent.git
+cd Interview-Agent
+
+# 2. Set up Python virtual environment
+cd backend
+python -m venv .venv
+
+# On Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+
+# On macOS/Linux:
+source .venv/bin/activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+```
+
+---
+
+## 12. Environment Variables
+
+Copy the example `.env` file in `backend/`:
+```bash
+cp .env.example .env
+```
+Fill in your chosen LLM provider credentials:
+```env
+LLM_PROVIDER=gemini  # Options: gemini | anthropic | openai | mock
+GEMINI_API_KEY=your_gemini_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+```
+*(Note: If no API key is provided, the engine defaults to mock mode so tests and local runs work out of the box).*
+
+---
+
+## 13. How to Run the Backend
+```bash
+cd backend
+.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload --port 8000
+```
+- API Endpoint: `http://127.0.0.1:8000/api/interview`
+- Interactive Swagger Docs: `http://127.0.0.1:8000/docs`
+
+---
+
+## 14. How to Run the Frontend
+Option A (Standalone):
+```bash
+cd frontend
+python -m http.server 5500
+```
+Open `http://127.0.0.1:5500` in your browser.
+
+Option B (Single-Server Mode):
+When the backend server runs (`http://127.0.0.1:8000`), opening `http://127.0.0.1:8000` automatically serves the full frontend application.
+
+---
+
+## 15. How to Run Tests
+All 58 unit, integration, and E2E tests run offline with zero external network dependencies:
+```bash
+cd backend
+pytest -v
+```
+**Output:**
+```
+======================== 58 passed, 1 warning in 0.65s ========================
+```
+
+---
+
+## 16. Deployment Guide
+
+### Deploying on Render / Railway
+1. **Build Command**: `pip install -r backend/requirements.txt`
+2. **Start Command**: `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
+3. **Environment Variables**: Add `GEMINI_API_KEY` (or `ANTHROPIC_API_KEY`), and `LLM_PROVIDER`.
+4. The application automatically serves both the API and the web frontend from a single URL!
+
+---
+
+## 17. AI-Assisted Development Note
+This project was developed through a systematic 5-part architecture using advanced AI pair-programming assistants. Prompts, architectural decisions, and human iterations are documented in detail in [PROMPTS.md](file:///e:/VICODATHON/Interview-Agent/PROMPTS.md).
+
+---
+
+## 18. Limitations
+- Evaluator scoring is bounded by prompt token budgets.
+- Sessions are maintained in an in-memory store; server restarts clear active session history.
+
+---
+
+## 19. Future Improvements
+- Persistent PostgreSQL/Redis session store for multi-server horizontally scalable clusters.
+- Real-time WebRTC audio streaming for live voice interview conversations.
+- Radar competency charts visualizing score breakdown across cohort curriculum modules.
+
+---
+
+## 20. Hackathon Submission Verification Checklist
+- [x] Functional technical interview chatbot meeting all specs
+- [x] $\ge 8$ questions enforced
+- [x] $\ge 4$ distinct curriculum days covered
+- [x] Contextual follow-up generation
+- [x] Structured `{ summary, strengths, gaps, next }` feedback
+- [x] `POST /api/interview` contract strictly preserved
+- [x] In-memory session tracking via `sessionId`
+- [x] 0 hardcoded secrets committed
+- [x] Comprehensive automated test suite (58 passed)

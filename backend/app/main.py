@@ -14,15 +14,17 @@ Run this file with:
     uvicorn app.main:app --reload
 """
 
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.interview import router as interview_router
 
 app = FastAPI(
     title="The Interview Agent",
     description="AI technical interview backend for the AI Cohort hackathon.",
-    version="0.1.0",
+    version="1.0.0",
 )
 
 # Enable CORS so the static frontend served from different ports/origins can call the API
@@ -45,3 +47,9 @@ def health_check() -> dict[str, str]:
     running (e.g. when checking things during development).
     """
     return {"status": "ok"}
+
+
+# Mount static frontend files if present (for single-server deployment)
+frontend_dir = Path(__file__).resolve().parent.parent.parent / "frontend"
+if frontend_dir.exists() and (frontend_dir / "index.html").exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")

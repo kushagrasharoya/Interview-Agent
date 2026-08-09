@@ -16,12 +16,11 @@
  * human-readable message the UI can show directly.
  */
 
-/**
- * Base URL of the backend. The backend runs on port 8000 by default
- * (see backend/README.md: `uvicorn app.main:app --reload`). Change
- * this one line if the backend is deployed somewhere else.
- */
-const API_BASE_URL = "http://127.0.0.1:8000";
+// Auto-detect API URL: if on separate static dev port (5500/5173/3000), point to 8000;
+// otherwise use current origin (for production deployment and single-server run).
+const API_BASE_URL = (typeof window !== "undefined" && window.location && window.location.port && ["5500", "5173", "3000"].includes(window.location.port))
+  ? "http://127.0.0.1:8000"
+  : (typeof window !== "undefined" && window.location ? window.location.origin : "http://127.0.0.1:8000");
 
 /**
  * Thrown whenever a call to the backend fails, for any reason
