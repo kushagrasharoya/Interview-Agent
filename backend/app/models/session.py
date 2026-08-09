@@ -96,15 +96,34 @@ class QuestionLevel(int, Enum):
 
 
 class GeneratedQuestion(BaseModel):
-    """One interview question, grounded in a specific curriculum day."""
+    """One interview question, grounded in a specific curriculum day with full traceability metadata."""
 
     day: int
     topic: str
     level: QuestionLevel
     question: str
+    curriculum_day: Optional[int] = None
+    curriculum_topic: Optional[str] = None
+    objective: Optional[str] = None
+    difficulty: Optional[str] = None
+    question_type: Optional[str] = None
     type: Optional[QuestionType] = None
     target_concepts: list[str] = Field(default_factory=list)
+    selection_reason: Optional[str] = None
     is_followup: bool = False
+
+    def traceability_metadata(self) -> dict:
+        """Internal audit metadata describing why this question was selected."""
+        return {
+            "question": self.question,
+            "curriculum_day": self.curriculum_day or self.day,
+            "curriculum_topic": self.curriculum_topic or self.topic,
+            "objective": self.objective or f"Understand core concepts and tools for Day {self.day}",
+            "difficulty": self.difficulty or self.level.name.lower(),
+            "question_type": self.question_type or (self.type.value if self.type else "application"),
+            "target_concepts": self.target_concepts,
+            "selection_reason": self.selection_reason or f"Assessing {self.topic} at {self.level.name} level",
+        }
 
 
 # ---------------------------------------------------------------------

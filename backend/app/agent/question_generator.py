@@ -72,24 +72,37 @@ def generate_question(
     )
 
     raw = llm_service.generate_json(system_prompt, user_prompt)
+    objectives = curriculum_day.get("objectives", [])
+    primary_objective = objectives[0] if objectives else f"Master Day {target_day} concepts"
+
     question = GeneratedQuestion.model_validate(
         {
             "day": raw.get("day", target_day),
             "topic": raw.get("topic", curriculum_day["title"]),
             "level": raw.get("level", level.value),
             "question": raw["question"],
+            "curriculum_day": target_day,
+            "curriculum_topic": curriculum_day["title"],
+            "objective": raw.get("objective", primary_objective),
+            "difficulty": level.name.lower(),
+            "question_type": raw.get("question_type", "application"),
+            "target_concepts": raw.get("target_concepts", curriculum_day.get("tools", [])),
+            "selection_reason": raw.get(
+                "selection_reason",
+                f"Assessing candidate on Day {target_day} ({curriculum_day['title']}) at {level.name} level."
+            ),
             "is_followup": False,
         }
     )
 
     if _is_repeat(question.question, context):
-        # Prevent repeating identical questions by pulling from curriculum objectives
-        objectives = curriculum_day.get("objectives", [])
+        # Quality check: prevent repeating identical questions
         alt_q = None
         for obj in objectives:
             candidate_text = f"Regarding {curriculum_day['title']}: {obj} — how did you design and implement this in practice?"
             if not _is_repeat(candidate_text, context):
                 alt_q = candidate_text
+                primary_objective = obj
                 break
         if alt_q:
             question = GeneratedQuestion(
@@ -97,6 +110,13 @@ def generate_question(
                 topic=curriculum_day["title"],
                 level=level,
                 question=alt_q,
+                curriculum_day=target_day,
+                curriculum_topic=curriculum_day["title"],
+                objective=primary_objective,
+                difficulty=level.name.lower(),
+                question_type="application",
+                target_concepts=curriculum_day.get("tools", []),
+                selection_reason=f"Regenerated unique question on Day {target_day} objective: {primary_objective}",
                 is_followup=False,
             )
 
@@ -115,6 +135,7 @@ def generate_followup_question(
     `previous_question`.
     """
     curriculum_day = _get_day_or_raise(previous_question.day)
+    missing_desc = ", ".join(evaluation.missing_concepts) or "depth and edge cases"
 
     system_prompt, user_prompt = prompts.follow_up_question_prompt(
         question=previous_question,
@@ -130,19 +151,15 @@ def generate_followup_question(
             "topic": raw.get("topic", previous_question.topic),
             "level": raw.get("level", previous_question.level.value),
             "question": raw["question"],
+            "curriculum_day": previous_question.day,
+            "curriculum_topic": previous_question.topic,
+            "objective": f"Probe gap on: {missing_desc}",
+            "difficulty": previous_question.level.name.lower(),
+            "question_type": "tradeoff" if "trade" in raw.get("question", "").lower() else "explanation",
+            "target_concepts": evaluation.missing_concepts or curriculum_day.get("tools", []),
+            "selection_reason": f"Follow-up targeting specific gap in previous response: {missing_desc}",
             "is_followup": True,
         }
     )
-
-    if _is_repeat(followup.question, context := InterviewContext(candidate=candidate, asked_questions=context.asked_questions if 'context' in locals() else [])):
-        missing = ", ".join(evaluation.missing_concepts) or "this topic"
-        alt_followup = f"Could you provide a concrete example of how you implemented {missing} on Day {previous_question.day} ({curriculum_day['title']})?"
-        followup = GeneratedQuestion(
-            day=previous_question.day,
-            topic=previous_question.topic,
-            level=previous_question.level,
-            question=alt_followup,
-            is_followup=True,
-        )
 
     return followup
